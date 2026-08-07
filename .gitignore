@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+qatvq/artifacts/*.pt
+qatvq/artifacts/*.log
+*.tmp
+.DS_Store
