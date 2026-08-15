@@ -1,0 +1,13 @@
+{
+  "id": "abdurrahmanrussel/gpt2-wikitext2-qatvq",
+  "title": "gpt2-wikitext2-qatvq",
+  "code_file": "gpt2_qatvq.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}

@@ -3,5 +3,7 @@ __pycache__/
 *.pyc
 qatvq/artifacts/*.pt
 qatvq/artifacts/*.log
+gpt2/artifacts/*.pt
+gpt2/artifacts/*.log
 *.tmp
 .DS_Store

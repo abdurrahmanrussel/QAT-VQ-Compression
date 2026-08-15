@@ -1,0 +1,33 @@
+{
+  "config": {
+    "sub_dim": 2,
+    "K": 256,
+    "seed": 1
+  },
+  "results": {
+    "Baseline": {
+      "perplexity": 25.404115676879883,
+      "avg_loss": 3.2349111366271974,
+      "size_mb": 497.815274,
+      "latency_ms_per_batch": 450.3744762451922
+    },
+    "PTQ": {
+      "perplexity": 25.426559448242188,
+      "avg_loss": 3.2357941923386013,
+      "size_mb": 125.26394,
+      "latency_ms_per_batch": 481.18589549768166
+    },
+    "QAT-INT8": {
+      "perplexity": 24.946496963500977,
+      "avg_loss": 3.2167333419506368,
+      "size_mb": 125.26394,
+      "latency_ms_per_batch": 654.2332406903877
+    },
+    "QAT+VQ": {
+      "perplexity": 26.4356632232666,
+      "avg_loss": 3.2747140659430087,
+      "size_mb": 96.792644,
+      "latency_ms_per_batch": 1020.7990564283778
+    }
+  }
+}
