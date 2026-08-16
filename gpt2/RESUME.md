@@ -1,48 +1,52 @@
-# GPT-2 / WikiText-2 branch — resume point
+# GPT-2 / WikiText-2 branch — STATUS: DONE ✅
 
-Branch: `gpt2-wikitext2-qatvq`. GPU freed, nothing running.
+Ran end-to-end on Kaggle (Tesla T4×2, 16GB). See `RESULTS.md` for the full
+writeup with honest framing.
 
-## Results so far (SST-2-style pipeline, ported to generation)
-| Model | Perplexity | Size (MB) | Compression |
-|-------|-----------|-----------|-------------|
-| Baseline | 25.40 | 497.8 | 1.0× |
-| PTQ | 25.43 | 125.3 | 3.97× |
-| QAT-INT8 | 24.95 | 125.3 | 3.97× |
-| QAT+VQ (best-of-5-seeds, no finetune) | 26.44 | 96.8 | 5.14× |
+## Final numbers (WikiText-2 test perplexity)
+| Model | Perplexity | Size | Compression |
+|-------|-----------|------|-------------|
+| Baseline | 25.82 | 497.8 MB | 1.0× |
+| PTQ | 25.84 | 125.3 MB | 3.97× |
+| QAT-INT8 | **25.07** (best overall) | 125.3 MB | 3.97× |
+| QAT+VQ | 26.13 | **96.8 MB** | **5.14×** |
 
-Unlike the DistilBERT branch, seed selection alone left a real gap (all 5 seeds
-landed 26.44-26.58, i.e. systematic, not variance) — perplexity is more
-precision-sensitive than classification accuracy. Honest framing: QAT+VQ is a
-**Pareto point** (23% smaller than PTQ, +4% ppl), not yet a clean win.
+QAT+VQ is a **Pareto point** here (23% smaller than PTQ, +1.1% ppl), not an
+outright win like the DistilBERT branch. Codebook fine-tuning helped this
+time (26.44 → 26.13), unlike DistilBERT where it hurt — perplexity is more
+precision-sensitive than classification accuracy.
 
-## In progress when paused
-Was running `finetune_vq.py --seed 1 --epochs 2 --lr 5e-6` — fine-tunes the
-PQConv1D codebook (already trainable) with a best-checkpoint guard (can only
-match-or-beat 26.44, never worse). Killed at step 400/2359 epoch 1, **no
-checkpoint saved yet** — rerun from scratch.
-
-## To resume
-```bash
-cd /home/md-abdur-rahman/code/thesis && source .venv/bin/activate && cd gpt2
-export PYTHONUNBUFFERED=1 TOKENIZERS_PARALLELISM=false PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-python finetune_vq.py --seed 1 --epochs 2 --lr 5e-6
-```
-Takes ~15-20 min on GTX 1650. Watch for `FINAL VERDICT` block at the end —
-compares fine-tuned QAT+VQ vs PTQ (25.43 ppl / 125.3 MB).
-
-If fine-tune still doesn't close the gap: that's fine — write it up honestly as
-a Pareto point (smaller-for-slightly-worse), which is still a valid, defensible
-result for the thesis. Then:
-```bash
-python make_figures.py     # perplexity vs size, compression bar
-```
-
-## Then: figures + RESULTS.md + commit/push
-Mirror the DistilBERT branch's `RESULTS.md` — diagnosis (N/A here, this is a
-new experiment not a fix), method, table, honest caveats. Commit + push to
-`gpt2-wikitext2-qatvq`.
+## What happened getting here (for future reference)
+Local 4GB GPU OOM'd on GPT-2 training even after batch/seq tuning, so moved
+to Kaggle. Hit a chain of setup issues worth remembering:
+1. GitHub push token pasted in chat expired/was invalid — regenerated fine-grained PAT.
+2. Kaggle kernel needs **phone verification** on the account for internet+GPU kernels.
+3. `enable_gpu: true` in kernel-metadata.json is **deprecated** — does nothing.
+   Must pass `--accelerator <name>` to `kaggle kernels push`.
+4. Accelerator names are NOT what you'd guess (`P100`, `GPU_T4X2` all silently
+   ignored, no error). Real values (found in `kagglesdk` source docstring):
+   `NvidiaTeslaT4`, `NvidiaTeslaP100`, `Tpu1VmV38`.
+5. Kaggle's current preinstalled PyTorch (cu128) dropped support for P100
+   (sm_60) — minimum supported is sm_70. **T4 (sm_75) works, P100 doesn't.**
+6. The actual GPT-2 scripts (`common_gpt2.py`, `quant_gpt2.py`, etc.) had only
+   ever been committed as `PLAN.md` — the real code was local-only. Every
+   Kaggle run failed instantly with "No such file" until this was pushed.
+7. `kaggle kernels output` only returns logs/files once a run reaches a
+   terminal state (COMPLETE/ERROR) — can't peek mid-run.
+8. The notebook's own git-push-back cell failed on a Kaggle-internal secrets
+   service ConnectionError (unrelated to our code) — results were pulled back
+   manually via `kaggle kernels output` instead.
 
 ## Files
-- `common_gpt2.py`, `quant_gpt2.py` (Conv1D-aware, reuses `../qatvq/quant.py` kmeans)
+- `common_gpt2.py`, `quant_gpt2.py` (Conv1D-aware int8 + Product-VQ)
 - `train_baseline.py`, `run_experiments.py`, `finetune_vq.py`, `make_figures.py`
-- `artifacts/baseline.pt`, `results.json`, logs
+- `RESULTS.md` — thesis-ready writeup
+- `artifacts/` results.json, results_table.md, figures/ (checkpoints gitignored)
+- `../kaggle_kernel/` — the notebook + metadata used for the Kaggle run
+
+## TODO next (with user)
+- Fold RESULTS.md numbers + figures into thesis (new chapter or extend Ch.4
+  with a "generation task" section, since this is genuinely new work vs the
+  original thesis which never ran this experiment).
+- Consider revoking/regenerating the GitHub PAT used for Kaggle (was pasted
+  in chat during setup).
