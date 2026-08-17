@@ -1,0 +1,41 @@
+{
+  "model": "gpt2",
+  "config": {
+    "sub_dim": 2,
+    "K": 256,
+    "seed": 0,
+    "vq_final": {
+      "seed": 1,
+      "K": 256,
+      "sub_dim": 2,
+      "finetune_epochs": 2,
+      "finetune_lr": 5e-06
+    }
+  },
+  "results": {
+    "Baseline": {
+      "perplexity": 24.33068084716797,
+      "avg_loss": 3.191738236011603,
+      "size_mb": 497.815679,
+      "latency_ms_per_batch": 168.74150760838245
+    },
+    "PTQ": {
+      "perplexity": 24.349884033203125,
+      "avg_loss": 3.1925271364358756,
+      "size_mb": 125.26394,
+      "latency_ms_per_batch": 169.6993327531658
+    },
+    "QAT-INT8": {
+      "perplexity": 24.136186599731445,
+      "avg_loss": 3.18371228266985,
+      "size_mb": 125.26394,
+      "latency_ms_per_batch": 206.24010680151767
+    },
+    "QAT+VQ": {
+      "perplexity": 24.75633430480957,
+      "avg_loss": 3.209081435814882,
+      "size_mb": 96.792644,
+      "latency_ms_per_batch": 101.84979047931608
+    }
+  }
+}
