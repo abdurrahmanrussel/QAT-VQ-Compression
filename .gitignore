@@ -5,5 +5,7 @@ qatvq/artifacts/*.pt
 qatvq/artifacts/*.log
 gpt2/artifacts/*.pt
 gpt2/artifacts/*.log
+gpt2_scaling/artifacts/**/*.pt
+gpt2_scaling/artifacts/**/*.log
 *.tmp
 .DS_Store
