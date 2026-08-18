@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 ART = os.path.join(os.path.dirname(__file__), "artifacts")
 FIG = os.path.join(ART, "figures")
 os.makedirs(FIG, exist_ok=True)
-ORDER = ["Baseline", "PTQ", "QAT-INT8", "QAT+VQ"]
+ORDER = ["Baseline", "PTQ", "QAT-INT8", "GPTQ", "AWQ", "QAT+VQ"]
 
 
 def load():
