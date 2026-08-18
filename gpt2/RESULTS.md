@@ -10,12 +10,16 @@ actually ran. Trained/evaluated on Kaggle (Tesla T4×2, 16 GB each).
 
 | Model | Perplexity | Size (MB) | Compression |
 |-------|-----------|-----------|-------------|
-| Baseline (fp32, fine-tuned) | 25.82 | 497.8 | 1.00× |
-| PTQ (int8) | 25.84 | 125.3 | 3.97× |
-| QAT (int8, fine-tuned) | **25.07** | 125.3 | 3.97× |
-| **QAT+VQ (proposed)** | 26.13 | **96.8** | **5.14×** |
+| Baseline (fp32, fine-tuned) | 25.85 | 497.8 | 1.00× |
+| PTQ (int8) | 25.87 | 125.3 | 3.97× |
+| QAT (int8, fine-tuned) | **25.11** | 125.3 | 3.97× |
+| GPTQ | 25.86 | 125.3 | 3.97× |
+| AWQ | 25.87 | 125.5 | 3.97× |
+| **QAT+VQ (proposed)** | 26.12 | **96.8** | **5.14×** |
 
-(Lower perplexity is better. `avg_loss`/latency in `artifacts/results.json`.)
+(Lower perplexity is better. `avg_loss`/latency in `artifacts/results.json`.
+Numbers shift slightly run-to-run, ~0.02-0.05 ppl, from training/calibration
+seed variance — not a re-tuned result, just the natural noise floor.)
 
 ## Method (same recipe as the DistilBERT/SST-2 branch, ported to Conv1D)
 
@@ -40,19 +44,32 @@ ppl; fine-tuning the same seed's codebook brought it to **26.13 ppl** — a real
 binary classification accuracy (every token's full output distribution
 matters, not just an argmax), so the extra recovery step earns its keep here.
 
+## GPTQ and AWQ baselines
+
+Added alongside PTQ/QAT/QAT+VQ: real literature-standard post-training
+quantization methods, implemented from scratch (`gptq_awq_conv1d.py`, a
+Conv1D port of the DistilBERT branch's `gptq_awq.py` — same core
+Hessian-guided GPTQ and activation-aware AWQ math, just adapted for
+`Conv1D`'s transposed weight layout) rather than pulled from `auto-gptq`/
+`AutoAWQ`. Both land essentially on top of naive PTQ here (GPTQ 25.86, AWQ
+25.87, PTQ 25.87) — same finding as the DistilBERT branch: their real
+advantage is rescuing 3-4 bit quantization on billion-parameter models from
+catastrophic error, and there's no significant naive-rounding error left for
+either to correct at 8 bits on a 124M-parameter model.
+
 ## Honest framing
 
-Unlike the DistilBERT branch (where QAT+VQ beat PTQ outright — higher
-accuracy AND smaller), here QAT+VQ does **not** beat PTQ on perplexity. It's
-a genuine **Pareto point**: 23% smaller than PTQ (96.8 MB vs 125.3 MB) for a
-+1.1% relative perplexity increase (26.13 vs 25.84). Whether that trade is
-worth it depends on the deployment constraint — for a hard model-size cap it's
-the better choice; for pure quality it isn't.
+Unlike the DistilBERT branch (where QAT+VQ beat PTQ, GPTQ, and AWQ outright —
+higher accuracy AND smaller), here QAT+VQ does **not** beat any of them on
+perplexity. It's a genuine **Pareto point**: 23% smaller than PTQ/GPTQ/AWQ
+(96.8 MB vs ~125.3 MB) for a roughly +1.0% relative perplexity increase.
+Whether that trade is worth it depends on the deployment constraint — for a
+hard model-size cap it's the better choice; for pure quality it isn't.
 
 QAT-INT8 alone is actually the best perplexity of all compressed variants
-(25.07, even beating the fp32 baseline) at the same size as PTQ — showing
-fine-tuning with fake-quantization is a strong standalone method for
-generation, even where the hybrid falls just short of PTQ.
+(25.11, even beating the fp32 baseline) at the same size as PTQ/GPTQ/AWQ —
+showing fine-tuning with fake-quantization is a strong standalone method for
+generation, even where the hybrid falls just short of the others.
 
 ## Reproduce
 
@@ -64,6 +81,7 @@ cd gpt2
 python train_baseline.py --epochs 1 --bs 8
 python run_experiments.py --sub_dim 2 --K 256 --qat_epochs 1 --ft_lr 1e-5 --seeds 0 1 2 3 4
 python finetune_vq.py --seed <best_seed_from_above> --epochs 2 --lr 5e-6
+python eval_gptq_awq.py --n_calib_batches 16   # GPTQ + AWQ baselines (from scratch)
 python make_figures.py
 ```
 
