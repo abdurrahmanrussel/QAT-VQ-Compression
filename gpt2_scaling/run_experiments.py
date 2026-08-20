@@ -11,11 +11,11 @@ import copy
 import json
 import argparse
 import torch
-from torch.optim import AdamW
 from transformers import GPT2LMHeadModel
 
 from common_wt103 import (get_tokenizer, load_wikitext103, make_loaders, evaluate_ppl,
                           model_disk_size_mb, print_report, DEVICE)
+from train_baseline import make_optimizer  # 8-bit AdamW when available, see its docstring
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "gpt2"))
 import quant_gpt2 as q  # noqa: E402  (Conv1D int8 + Product-VQ, reused as-is)
@@ -41,7 +41,7 @@ def freeze_embeddings(model):
 def finetune(model, train_loader, val_loader, epochs, lr, tag=""):
     freeze_embeddings(model)
     model.gradient_checkpointing_enable()
-    opt = AdamW([p for p in model.parameters() if p.requires_grad], lr=lr)
+    opt = make_optimizer([p for p in model.parameters() if p.requires_grad], lr)
     scaler = torch.amp.GradScaler("cuda", enabled=True)
     for ep in range(epochs):
         model.train()

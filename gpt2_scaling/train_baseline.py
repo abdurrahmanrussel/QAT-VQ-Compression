@@ -5,13 +5,27 @@ coexist for the scaling comparison.
 import os
 import argparse
 import torch
-from torch.optim import AdamW
 from transformers import GPT2LMHeadModel, get_linear_schedule_with_warmup
 
 from common_wt103 import (get_tokenizer, load_wikitext103, make_loaders, evaluate_ppl,
                           model_disk_size_mb, print_report, DEVICE)
 
 ROOT_ART = os.path.join(os.path.dirname(__file__), "artifacts")
+
+
+def make_optimizer(params, lr):
+    """8-bit AdamW when available -- cuts optimizer state memory ~4x
+    (fp32 AdamW needs weight+grad+2 moments ~= 4x param memory; at 774M
+    params that's ~12.4GB on its own, saturating a 16GB GPU before any
+    batch/activation memory even comes into play, regardless of batch size).
+    Falls back to plain AdamW for smaller models or when bitsandbytes isn't
+    installed (e.g. local dev)."""
+    try:
+        import bitsandbytes as bnb
+        return bnb.optim.AdamW8bit(params, lr=lr)
+    except ImportError:
+        from torch.optim import AdamW
+        return AdamW(params, lr=lr)
 
 
 def train(model_name, epochs=1, bs=8, grad_accum=1, lr=5e-5, train_subset_chars=20_000_000):
@@ -27,7 +41,7 @@ def train(model_name, epochs=1, bs=8, grad_accum=1, lr=5e-5, train_subset_chars=
     model.gradient_checkpointing_enable()
     model.config.use_cache = False
 
-    opt = AdamW(model.parameters(), lr=lr)
+    opt = make_optimizer(model.parameters(), lr)
     total_steps = (len(train_loader) // grad_accum) * epochs
     sched = get_linear_schedule_with_warmup(opt, int(0.06 * total_steps), total_steps)
     scaler = torch.amp.GradScaler("cuda", enabled=True)
