@@ -1,0 +1,13 @@
+{
+  "id": "abdurrahmanrussel/gpt2-large-wikitext103-qatvq",
+  "title": "gpt2-large-wikitext103-qatvq",
+  "code_file": "gpt2_large.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}

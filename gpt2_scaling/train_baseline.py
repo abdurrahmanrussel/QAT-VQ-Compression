@@ -63,7 +63,7 @@ def train(model_name, epochs=1, bs=8, grad_accum=1, lr=5e-5, train_subset_chars=
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", type=str, required=True, choices=["gpt2", "gpt2-medium"])
+    ap.add_argument("--model", type=str, required=True, choices=["gpt2", "gpt2-medium", "gpt2-large"])
     ap.add_argument("--epochs", type=int, default=1)
     ap.add_argument("--bs", type=int, default=8)
     ap.add_argument("--grad_accum", type=int, default=1)

@@ -1,7 +1,7 @@
 """Generate per-model figures/tables AND the combined scaling comparison
-(GPT-2 124M vs GPT-2-Medium 355M, both on WikiText-103) -- the actual
-deliverable of this branch: does the QAT+VQ compression/quality trade hold
-as the model gets bigger?
+(GPT-2 124M vs GPT-2-Medium 355M vs GPT-2-Large 774M, all on WikiText-103)
+-- the actual deliverable of this branch: does the QAT+VQ compression/
+quality trade hold as the model gets bigger?
 """
 import os
 import json
@@ -14,8 +14,9 @@ ART = os.path.join(os.path.dirname(__file__), "artifacts")
 FIG = os.path.join(ART, "figures")
 os.makedirs(FIG, exist_ok=True)
 ORDER = ["Baseline", "PTQ", "QAT-INT8", "QAT+VQ"]
-MODELS = ["gpt2", "gpt2-medium"]
-MODEL_LABEL = {"gpt2": "GPT-2 (124M)", "gpt2-medium": "GPT-2-Medium (355M)"}
+MODELS = ["gpt2", "gpt2-medium", "gpt2-large"]
+MODEL_LABEL = {"gpt2": "GPT-2 (124M)", "gpt2-medium": "GPT-2-Medium (355M)",
+              "gpt2-large": "GPT-2-Large (774M)"}
 
 
 def load(model_name):
@@ -53,16 +54,17 @@ def per_model_outputs(model_name, res):
 
 def scaling_comparison(all_res):
     """The key figure: does compression ratio / relative ppl gap hold as
-    the model scales from 124M to 355M?"""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
+    the model scales from 124M to 774M?"""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5))
     x = np.arange(len(ORDER))
-    width = 0.35
-    colors = {"gpt2": "#7ec8e3", "gpt2-medium": "#e67e22"}
+    n_models = len(MODELS)
+    width = 0.8 / n_models
+    colors = {"gpt2": "#7ec8e3", "gpt2-medium": "#e67e22", "gpt2-large": "#2e8b57"}
 
     for i, model in enumerate(MODELS):
         res = all_res[model]
         sizes = [res[n]["size_mb"] for n in ORDER]
-        offset = (i - 0.5) * width
+        offset = (i - (n_models - 1) / 2) * width
         ax1.bar(x + offset, sizes, width, label=MODEL_LABEL[model], color=colors[model])
     ax1.set_xticks(x); ax1.set_xticklabels(ORDER, rotation=15)
     ax1.set_ylabel("Model Size (MB)"); ax1.set_yscale("log")

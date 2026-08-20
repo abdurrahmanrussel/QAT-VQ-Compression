@@ -156,7 +156,7 @@ def main(model_name, sub_dim, K, qat_epochs, ft_lr, seeds, bs_train, bs_eval, tr
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", type=str, required=True, choices=["gpt2", "gpt2-medium"])
+    ap.add_argument("--model", type=str, required=True, choices=["gpt2", "gpt2-medium", "gpt2-large"])
     ap.add_argument("--sub_dim", type=int, default=2)
     ap.add_argument("--K", type=int, default=256)
     ap.add_argument("--qat_epochs", type=int, default=1)
