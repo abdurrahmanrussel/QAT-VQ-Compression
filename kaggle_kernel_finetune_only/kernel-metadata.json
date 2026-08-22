@@ -1,0 +1,13 @@
+{
+  "id": "abdurrahmanrussel/gpt2-large-finetune-only-qatvq",
+  "title": "gpt2-large-finetune-only-qatvq",
+  "code_file": "finetune_only.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["abdurrahmanrussel/gpt2-large-qatvq-checkpoint"],
+  "competition_sources": [],
+  "kernel_sources": []
+}
