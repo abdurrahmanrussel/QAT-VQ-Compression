@@ -3,43 +3,34 @@
 Third experiment in the QAT-VQ series, asking a question the other two
 branches couldn't answer alone: **does the QAT+VQ compression/quality
 trade-off get better or worse as the model scales up?** Same method, same
-dataset (WikiText-103), three model sizes — directly comparable, unlike the
-GPT-2/WikiText-2 branch which also changed the dataset alongside the task.
-Ran end-to-end on Kaggle (Tesla T4, single GPU per run).
+dataset (WikiText-103, same 20M-character calibration subset at every
+size), three model sizes — directly comparable, unlike the GPT-2/WikiText-2
+branch which also changed the dataset alongside the task. Ran end-to-end on
+Kaggle (Tesla T4, single GPU per run). All four methods are complete and
+fully matched across all three sizes — no outstanding caveats.
 
 ## Headline finding: compression keeps improving with scale; the quality
 ## gap does not shrink monotonically
 
 | | GPT-2 (124M) | GPT-2-Medium (355M) | GPT-2-Large (774M) |
 |---|---|---|---|
-| QAT+VQ perplexity gap vs PTQ | +1.68% | +1.30% | **+2.65%** |
+| QAT+VQ perplexity gap vs PTQ | +1.68% | +1.30% | **+2.59%** |
 | QAT+VQ size vs PTQ | 22.7% smaller | 28.4% smaller | **30.4% smaller** |
 | QAT+VQ compression vs baseline | 5.14× | 5.55× | **5.73×** |
 
-With only two points (124M, 355M) an earlier version of this doc claimed the
-quality gap "narrows with scale." **The third point breaks that claim** —
-the gap widens again at 774M, ending up worse than the 124M starting point.
-The compression-ratio trend, in contrast, *does* hold cleanly across all
-three sizes (5.14× → 5.55× → 5.73×, monotonic). Reporting both findings as
-they actually are, not force-fitting the original two-point story.
+The compression-ratio trend is clean and monotonic across all three sizes
+(5.14× → 5.55× → 5.73×) — bigger models have more redundancy for Product-VQ
+to exploit. The quality-gap trend is **not** monotonic: it narrows from
+124M to 355M, then widens sharply at 774M, ending up worse than the 124M
+starting point. Both findings are now fully confirmed on matched data with
+no remaining confounds.
 
-**A confound was found, chased down, and mostly resolved.** The first
-774M run used a 10M-character calibration subset (half the 20M used at the
-other two sizes) purely for Kaggle compute-budget reasons, and that run's
-quality numbers were initially suspect as a possible data-budget artifact
-rather than a genuine scale effect. A second run with the **same 20M-char
-subset as the other two sizes** was launched to check — it confirms
-**`Baseline`, `PTQ`, and `QAT-INT8` fully completed on matched data, and the
-QAT-INT8 flip-to-worse-at-774M finding holds** (+4.1% vs baseline at 774M,
-vs -0.8%/-0.3% at the smaller sizes) — this is a real model-scale effect,
-not a calibration-data artifact. One caveat remains: the matched-data run
-was cancelled (Kaggle session limit, ~12h) partway through the QAT+VQ
-codebook fine-tune step, so the **QAT+VQ number reported for 774M is
-pre-finetune** — the other two scales' QAT+VQ numbers include a completed
-fine-tune, which historically improved results by ~0.3-0.4 ppl there. If
-774M's fine-tune would have helped similarly, its true post-finetune number
-is likely somewhat better than 16.65 — this was not confirmed and is
-reported honestly as an open gap, not filled in with a guess.
+A second, related finding: **QAT-INT8 (fine-tuned int8, no VQ) flips from
+better-than-baseline at the two smaller sizes to notably worse at 774M**
+(-0.8% at 124M, -0.3% at 355M, **+4.1% at 774M**). Simple int8 fine-tuning
+recovers more than it costs at smaller scale, but stops doing so at 774M —
+a genuine model-scale effect, confirmed on matched calibration data (see
+"Chasing down a confound" below for how this was verified).
 
 ## Full results
 
@@ -62,38 +53,37 @@ reported honestly as an open gap, not filled in with a guess.
 | QAT+VQ | 18.65 | 255.6 | 5.55× |
 
 **GPT-2-Large (774M), WikiText-103** (20M-char calibration subset, matching
-the other two — `Baseline`/`PTQ`/`QAT-INT8` are complete and final; `QAT+VQ`
-is the best-of-3-seeds result **before** codebook fine-tuning, which was
-interrupted by a Kaggle session-length cancellation):
+the other two — all four methods fully complete):
 
 | Model | Perplexity | Size (MB) | Compression |
 |-------|-----------|-----------|-------------|
 | Baseline | 16.22 | 3096.3 | 1.00× |
 | PTQ | 16.22 | 777.3 | 3.98× |
 | QAT-INT8 | 16.88 | 777.3 | 3.98× |
-| QAT+VQ (pre-finetune) | 16.65 | 540.5 | 5.73× |
+| QAT+VQ | 16.64 | 540.5 | 5.73× |
 
 Perplexity keeps dropping with scale (24 → 18 → 16, expected — bigger models
 are just better language models), and PTQ stays essentially free of cost at
-every size. But **QAT-INT8, which was actually *better* than baseline at
-124M and 355M (fine-tuning recovering more than the quantization cost),
-flips to notably worse at 774M** (+4.1%) — confirmed on matched calibration
-data, so this is a genuine model-scale effect, not a data-budget artifact.
+every size.
 
 ## Method (identical at all three scales)
 
 - MLP weights → 4-bit Product-VQ (K=256 codebook, 2-D sub-vectors), best-of-3
-  seeds, then codebook fine-tuned (best-checkpoint guarded) — completed for
-  124M and 355M, interrupted mid-fine-tune for 774M (see above).
+  seeds, then codebook fine-tuned (best-checkpoint guarded).
 - Attention weights → per-channel INT8.
 - Embeddings → INT8.
 - `quant_gpt2.py` is reused completely unmodified from the GPT-2/WikiText-2
   branch — Conv1D layer surgery doesn't care about hidden size, which is
   exactly what makes this a clean method comparison across scales.
 
-Codebook fine-tuning helped at both scales where it completed (matches the
-WikiText-2 branch's finding, not the DistilBERT branch's): 355M's QAT+VQ
-improved from a pre-finetune ~19.0 ppl (best seed) to 18.65 ppl.
+**Codebook fine-tuning's payoff shrinks with scale.** At 355M, fine-tuning
+improved QAT+VQ from ~19.0 ppl (pre-finetune, best seed) to 18.65 ppl — a
+real ~0.35 ppl gain. At 774M, fine-tuning barely moved the number at all:
+16.65 ppl pre-finetune → 16.64 ppl after epoch 1 (the best checkpoint;
+epoch 2 actually got slightly worse, at 16.76, and was correctly discarded
+by the best-checkpoint guard). The larger model's k-means initialization is
+already close to as good as 2 epochs of fine-tuning can get it — the
+opposite of what helped smaller models most.
 
 ### The 774M runs needed 8-bit AdamW to fit in 16GB
 
@@ -109,23 +99,49 @@ the QAT fine-tune step, and the codebook fine-tune step (the latter two also
 train nearly all parameters via `FakeQuantConv1D`/`PQConv1D` wrapping, same
 OOM exposure as full fine-tuning).
 
-The matched-data (20M-char) run still took long enough (~12h) to hit
-Kaggle's session-length limit before the codebook fine-tune step finished —
-a second, separate resource constraint from the memory one above.
+## Chasing down a confound
+
+The first 774M attempt used a 10M-character calibration subset (half the
+other two sizes' 20M) purely to bound Kaggle compute time, and its results
+were flagged as potentially confounded rather than trusted outright. Getting
+to the final, clean numbers above took several more steps, documented here
+for anyone reproducing this:
+
+1. **Matched-data rerun** (20M chars, same as 124M/355M): completed
+   `Baseline`/`PTQ`/`QAT-INT8` in full and confirmed the QAT-INT8
+   flip-to-worse-at-774M finding is real, not a calibration-data artifact.
+   Got cancelled by Kaggle's session-length limit (~12h) partway through the
+   `QAT+VQ` codebook fine-tune step, though — leaving only a pre-finetune
+   number for that one method.
+2. **Checkpoint recovery**: the already-trained `baseline.pt` (3GB,
+   representing that ~12h of completed compute) was pulled back from the
+   cancelled kernel's output rather than retrained from scratch, uploaded as
+   a private Kaggle Dataset, and mounted into a second, much shorter kernel
+   that runs only the fine-tune step.
+3. **A real bug found along the way**: the first (10M-char) run's
+   `finetune_vq` step had used the notebook's hardcoded `--seed 1` instead
+   of the actual best seed found by the 3-seed search (**seed 2**, at 16.65
+   ppl vs 16.79/16.85 for seeds 0/1) — fixed for the recovery run.
+4. **A Kaggle mount-path quirk**: the recovery kernel initially failed twice
+   with `baseline.pt` not found at the expected
+   `/kaggle/input/<dataset-slug>/` path — it turned out to actually mount at
+   `/kaggle/input/datasets/<owner>/<dataset-slug>/`, an extra `datasets/
+   <owner>/` prefix not documented anywhere obvious. Fixed by searching
+   `/kaggle/input` broadly instead of assuming the path.
+5. **Success**: the finetune-only kernel completed both epochs cleanly (see
+   the fine-tuning payoff note above), giving the final, fully-matched
+   `QAT+VQ = 16.64 ppl` reported throughout this document.
 
 ## Honest framing
 
 QAT+VQ does not beat PTQ outright at any of the three scales — it remains a
-Pareto point (meaningfully smaller, at some perplexity cost), not a win. The
-size trend across scale is real, clean, and confirmed on matched data:
-compression keeps improving as the model grows (5.14× → 5.55× → 5.73×). The
-quality-gap trend is *not* clean once a third point is added — it dips then
-rises. The 774M QAT-INT8 result is fully confirmed on matched data (a real
-effect); the 774M QAT+VQ result is real but incomplete (pre-finetune only),
-so its exact final position in that trend is not settled — it may look
-somewhat better once fully fine-tuned, but is unlikely to reverse the
-overall "not monotonic" conclusion given fine-tuning's typical ~0.3-0.4 ppl
-magnitude versus the ~1 ppl gap currently observed.
+Pareto point (meaningfully smaller, at some perplexity cost), not a win.
+That said, both trends reported here are now fully confirmed on matched,
+complete data: compression improves monotonically with scale; the quality
+cost does not, dipping at 355M before widening again at 774M. Two data
+points would have suggested a clean "everything gets better with scale"
+story; the third point shows the real picture is more nuanced — which is
+itself the more scientifically honest and useful finding to report.
 
 ## Reproduce
 
@@ -140,8 +156,10 @@ python run_experiments.py --model gpt2-medium --sub_dim 2 --K 256 --seeds 0 1 2 
 python finetune_vq.py --model gpt2-medium --seed <best> --epochs 2 --lr 5e-6 --bs_train 2 --bs_eval 2
 
 # gpt2-large needs bitsandbytes (pip install bitsandbytes) for 8-bit AdamW,
-# and fits a T4's 16GB only at bs=1 even with it. A full 2-epoch finetune_vq
-# run at 20M chars risks exceeding a single Kaggle session's time limit.
+# and fits a T4's 16GB only at bs=1 even with it. The full pipeline at 20M
+# chars is ~23h total -- split across two Kaggle sessions if needed (see
+# kaggle_kernel_scaling_large/ for stage 1, kaggle_kernel_finetune_only/
+# for stage 2, which reuses stage 1's checkpoint via a Kaggle Dataset).
 python train_baseline.py --model gpt2-large --epochs 1 --bs 1 --grad_accum 8 --train_subset_chars 20000000
 python run_experiments.py --model gpt2-large --sub_dim 2 --K 256 --seeds 0 1 2 --bs_train 1 --bs_eval 1 --train_subset_chars 20000000
 python finetune_vq.py --model gpt2-large --seed <best> --epochs 2 --lr 5e-6 --bs_train 1 --bs_eval 1 --train_subset_chars 20000000
@@ -149,10 +167,11 @@ python finetune_vq.py --model gpt2-large --seed <best> --epochs 2 --lr 5e-6 --bs
 python make_figures.py   # per-model figures + combined scaling_comparison.png
 ```
 
-See `../kaggle_kernel_scaling/` (124M + 355M, one session) and
-`../kaggle_kernel_scaling_large/` (774M only, reuses the other two's
-already-committed results for the combined comparison) for the Kaggle
-notebooks used.
+See `../kaggle_kernel_scaling/` (124M + 355M, one session),
+`../kaggle_kernel_scaling_large/` (774M stage 1: baseline/PTQ/QAT-INT8/
+pre-finetune QAT+VQ), and `../kaggle_kernel_finetune_only/` (774M stage 2:
+codebook fine-tune only, resumes from stage 1's checkpoint via a Kaggle
+Dataset) for the Kaggle notebooks used.
 
 ## Figures
 
