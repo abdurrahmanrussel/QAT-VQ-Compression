@@ -246,6 +246,14 @@ on a 66M-parameter, already near-saturated binary classification task,
 there is little rounding error left for Hessian-guided correction (GPTQ)
 or activation-aware channel protection (AWQ) to recover.
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/distilbert_size_acc.png}
+\caption{DistilBERT / SST-2: model size and accuracy by compression
+method. QAT+VQ is simultaneously the smallest and most accurate.}
+\label{fig:distilbert}
+\end{figure}
+
 \subsection{GPT-2 / WikiText-2: A Genuine Pareto Point}
 
 \begin{table}[h]
@@ -276,6 +284,15 @@ overstating it as a win --- the task-dependence of whether the hybrid
 wins outright (classification) or trades off (generation) is itself a
 finding worth noting for practitioners choosing a compression strategy.
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/gpt2wt2_size_ppl.png}
+\caption{GPT-2 (124M) / WikiText-2: model size and perplexity by
+compression method. QAT+VQ trades a small perplexity increase for the
+smallest footprint of any method.}
+\label{fig:gpt2wt2}
+\end{figure}
+
 \subsection{Scaling Study: 124M vs. 355M vs. 774M}
 \label{sec:scaling}
 
@@ -300,7 +317,17 @@ complete at every scale with no remaining data confounds.}
 \label{tab:scaling}
 \end{table}
 
-Two trends emerge, and they diverge:
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/scaling_comparison.png}
+\caption{Size (left) and relative perplexity cost versus baseline
+(right) by compression method, across all three GPT-2 scales. The
+compression trend (left) is monotonic; the quality-cost trend (right) is
+not.}
+\label{fig:scaling}
+\end{figure}
+
+Two trends emerge, and they diverge (Figure~\ref{fig:scaling}):
 
 \textbf{Compression improves monotonically with scale.} QAT+VQ's
 compression ratio rises from 5.14$\times$ at 124M to 5.55$\times$ at 355M

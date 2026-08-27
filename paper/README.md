@@ -1,8 +1,11 @@
 # QAT-VQ Paper
 
-`qatvq_paper.tex` + `references.bib` — draft paper synthesizing all three
-experiment branches (DistilBERT/SST-2, GPT-2/WikiText-2, GPT-2 scaling
-study) into one submission-ready document.
+`qatvq_paper.tex` + `references.bib` + `figures/` — draft paper synthesizing
+all three experiment branches (DistilBERT/SST-2, GPT-2/WikiText-2, GPT-2
+scaling study) into one submission-ready document, with the three main
+result figures embedded (`figures/`: DistilBERT size/accuracy,
+GPT-2/WikiText-2 size/perplexity, the 3-scale compression-vs-quality
+comparison).
 
 Checked for structural correctness (balanced braces, matched
 `\begin`/`\end`, consistent table column counts, all citations resolve to
